@@ -20,7 +20,7 @@ test_set = Newsgroups20Dataset('dataset/ng20', subset='test', download=True, bow
 test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=64, shuffle=True)
 
 #########################################################################################################
-y_dim = 20
+y_dim = train_set.num_classes()
 num_bits = 32
 num_features = train_set[0][0].size(0)
 
@@ -58,7 +58,7 @@ with open('logs/VDSH/loss.log.txt', 'w') as log_handle:
             
             log_handle.write('{},{},{:.4f},{:.4f},{:.4f}'.format(epoch, step, loss.item(), 
                                                                  reconstr_loss.item(), kl_loss.item()))
-        print('epoch:{} loss:{:.4f}'.format(epoch, np.mean(avg_loss)))
+        print('{} epoch:{} loss:{:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss)))
         
         with torch.no_grad():
             train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
