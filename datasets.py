@@ -37,3 +37,6 @@ class Newsgroups20Dataset(Dataset):
         doc_bow = torch.from_numpy(doc_bow.toarray().squeeze().astype(np.float32))
         label = self.df.iloc[idx].label
         return (doc_bow, label)
+    
+    def num_classes(self):
+        return 20
