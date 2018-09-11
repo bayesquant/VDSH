@@ -9,14 +9,16 @@ from models.VDSH_SP import VDSH_SP
 
 #########################################################################################################
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 os.environ["CUDA_VISIBLE_DEVICES"]="3"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 #########################################################################################################
 
-train_set = Newsgroups20Dataset('dataset/ng20', subset='train', download=True, bow_format='tf')
+dataset = 'ng20'
+data_fmt = 'tfidf'
+train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
 train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=64, shuffle=True)
-test_set = Newsgroups20Dataset('dataset/ng20', subset='test', download=True, bow_format='tf')
+test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
 test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=64, shuffle=True)
 
 #########################################################################################################

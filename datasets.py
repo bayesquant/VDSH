@@ -23,8 +23,8 @@ class SingleLabelTextDataset(Dataset):
         self.data_dir = data_dir
         self.subset = subset
         self.bow_format = bow_format
-        self.df = self.load_df('{}.df.pkl'.format(subset))
-        
+        self.df = self.load_df('{}.{}.df.pkl'.format(subset, bow_format))
+
     def load_df(self, df_file):
         df_file = os.path.join(self.data_dir, df_file)
         return pd.read_pickle(df_file)

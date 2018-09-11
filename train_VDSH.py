@@ -14,10 +14,11 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 #########################################################################################################
 
-dataset = 'agnews'
-train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', download=True, bow_format='tf')
+dataset = 'ng20'
+data_fmt = 'tfidf'
+train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
 train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=64, shuffle=True)
-test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', download=True, bow_format='tf')
+test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
 test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=64, shuffle=True)
 
 #########################################################################################################
@@ -26,7 +27,7 @@ num_bits = 32
 num_features = train_set[0][0].size(0)
 
 #########################################################################################################
-model = VDSH('ng20', num_features, num_bits, dropoutProb=0.1, device=device)
+model = VDSH(dataset, num_features, num_bits, dropoutProb=0.1, device=device)
 model.to(device)
 
 num_epochs = 25
