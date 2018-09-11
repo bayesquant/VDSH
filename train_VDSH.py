@@ -9,8 +9,8 @@ from models.VDSH import VDSH
 
 #########################################################################################################
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 os.environ["CUDA_VISIBLE_DEVICES"]="3"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 #########################################################################################################
 
