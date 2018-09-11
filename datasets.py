@@ -8,8 +8,8 @@ from torch.utils.data import Dataset
 
 ##########################################################################################################################
 
-class Newsgroups20Dataset(Dataset):
-    """Newsgroups20 dataset."""
+class SingleLabelTextDataset(Dataset):
+    """datasets wrapper for ng20, agnews, dbpedia, yahooanswer"""
 
     def __init__(self, data_dir, download=False, subset='train', bow_format='tf'):
         """
@@ -39,4 +39,6 @@ class Newsgroups20Dataset(Dataset):
         return (doc_bow, label)
     
     def num_classes(self):
-        return 20
+        return len(set(self.df.label))
+    
+##########################################################################################################################

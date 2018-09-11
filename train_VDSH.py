@@ -14,9 +14,10 @@ os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 #########################################################################################################
 
-train_set = Newsgroups20Dataset('dataset/ng20', subset='train', download=True, bow_format='tf')
+dataset = 'agnews'
+train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', download=True, bow_format='tf')
 train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=64, shuffle=True)
-test_set = Newsgroups20Dataset('dataset/ng20', subset='test', download=True, bow_format='tf')
+test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', download=True, bow_format='tf')
 test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=64, shuffle=True)
 
 #########################################################################################################
