@@ -6,33 +6,72 @@ import torch.optim as optim
 from datasets import *
 from utils import *
 from models.VDSH_S import VDSH_S
+import argparse
 
-#########################################################################################################
+##################################################################################################
 
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+parser = argparse.ArgumentParser()
+parser.add_argument("-g", "--gpunum", help="GPU number to train the model.")
+parser.add_argument("-d", "--dataset", help="Name of the dataset.")
+parser.add_argument("-b", "--nbits", help="Number of bits of the embedded vector.", type=int)
+parser.add_argument("--dropout", help="Dropout probability (0 means no dropout)", default=0.1, type=float)
+parser.add_argument("--train_batch_size", default=100, type=int)
+parser.add_argument("--test_batch_size", default=100, type=int)
+parser.add_argument("--transform_batch_size", default=100, type=int)
+parser.add_argument("--num_epochs", default=30, type=int)
+parser.add_argument("--lr", default=0.001, type=float)
+parser.add_argument('--single-label', dest='pred_type', action='store_true', help='Use softmax on the output of the prediction layer.')
+parser.add_argument('--multi-label', dest='pred_type', action='store_false', help='Use sigmoid on the output of the prediction layer.')
+parser.set_defaults(pred_type=True)
+
+args = parser.parse_args()
+
+if not args.gpunum:
+    parser.error("Need to provide the GPU number.")
+    
+if not args.dataset:
+    parser.error("Need to provide the dataset.")
+
+if not args.nbits:
+    parser.error("Need to provide the dataset.")
+        
+##################################################################################################
+
+os.environ["CUDA_VISIBLE_DEVICES"]=args.gpunum
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 #########################################################################################################
 
-dataset = 'ng20'
-data_fmt = 'tfidf'
+dataset, data_fmt = args.dataset.split('.')
 train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
-train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=64, shuffle=True)
+train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=args.train_batch_size, shuffle=True)
 test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
-test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=64, shuffle=True)
+test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=args.test_batch_size, shuffle=True)
 
 #########################################################################################################
 y_dim = train_set.num_classes()
-num_bits = 32
+num_bits = args.nbits
 num_features = train_set[0][0].size(0)
 
+print("Train VDSH-S model ...")
+print("dataset: {}".format(args.dataset))
+print("numbits: {}".format(args.nbits))
+print("gpu id:  {}".format(args.gpunum))
+print("dropout probability: {}".format(args.dropout))
+if args.pred_type:
+    print("single-label prediction.")
+else:
+    print("multi-label prediction.")
+print("num epochs: {}".format(args.num_epochs))
+print("learning rate: {}".format(args.lr))
+
 #########################################################################################################
-model = VDSH_S(dataset, num_features, num_bits, y_dim, device, dropoutProb=0.1)
+model = VDSH_S(dataset, num_features, num_bits, y_dim, device, dropoutProb=args.dropout, use_softmax=args.pred_type)
 model.to(device)
 
-num_epochs = 25
+num_epochs = args.num_epochs
 
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=args.lr)
 kl_weight = 0.
 kl_step = 1 / 5000.
 pred_weight = 0.
