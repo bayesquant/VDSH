@@ -65,6 +65,7 @@ else:
     print("multi-label prediction.")
 print("num epochs: {}".format(args.num_epochs))
 print("learning rate: {}".format(args.lr))
+print("num train: {} num test: {}".format(len(train_set), len(test_set)))
 
 #########################################################################################################
 model = VDSH_S(dataset, num_features, num_bits, y_dim, device, dropoutProb=args.dropout, use_softmax=args.single_label)
