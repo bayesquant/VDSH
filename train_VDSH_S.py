@@ -20,9 +20,10 @@ parser.add_argument("--test_batch_size", default=100, type=int)
 parser.add_argument("--transform_batch_size", default=100, type=int)
 parser.add_argument("--num_epochs", default=30, type=int)
 parser.add_argument("--lr", default=0.001, type=float)
-parser.add_argument('--single-label', dest='pred_type', action='store_true', help='Use softmax on the output of the prediction layer.')
-parser.add_argument('--multi-label', dest='pred_type', action='store_false', help='Use sigmoid on the output of the prediction layer.')
-parser.set_defaults(pred_type=True)
+parser.add_argument('--single-label', dest='single_label', action='store_true', help='Use softmax on the output of the prediction layer.')
+parser.add_argument('--multi-label', dest='single_label', action='store_false', help='Use sigmoid on the output of the prediction layer.')
+parser.add_argument('--pred_weight', default=150.0, type=float, help='The weight of the prediction loss.')
+parser.set_defaults(single_label=True)
 
 args = parser.parse_args()
 
@@ -58,7 +59,7 @@ print("dataset: {}".format(args.dataset))
 print("numbits: {}".format(args.nbits))
 print("gpu id:  {}".format(args.gpunum))
 print("dropout probability: {}".format(args.dropout))
-if args.pred_type:
+if args.single_label:
     print("single-label prediction.")
 else:
     print("multi-label prediction.")
@@ -66,7 +67,7 @@ print("num epochs: {}".format(args.num_epochs))
 print("learning rate: {}".format(args.lr))
 
 #########################################################################################################
-model = VDSH_S(dataset, num_features, num_bits, y_dim, device, dropoutProb=args.dropout, use_softmax=args.pred_type)
+model = VDSH_S(dataset, num_features, num_bits, y_dim, device, dropoutProb=args.dropout, use_softmax=args.single_label)
 model.to(device)
 
 num_epochs = args.num_epochs
@@ -85,13 +86,17 @@ with open('logs/VDSH_S/loss.log.txt', 'w') as log_handle:
         for step, (xb, yb) in enumerate(train_loader):
             xb = xb.to(device)
             yb = yb.to(device)
-        #     y_onehot = torch.zeros((xb.size(0), y_dim))
-        #     y_onehot = y_onehot.scatter_(1, yb.unsqueeze(1), 1)
 
             logprob_w, score_c, mu, logvar = model(xb)
             kl_loss = VDSH_S.calculate_KL_loss(mu, logvar)
             reconstr_loss = VDSH_S.compute_reconstr_loss(logprob_w, xb)
-            pred_loss = model.compute_prediction_loss(score_c, yb)
+            
+            if args.single_label:
+                pred_loss = model.compute_prediction_loss(score_c, yb)
+            else:
+                y_onehot = torch.zeros((xb.size(0), y_dim)).to(device)
+                y_onehot = y_onehot.scatter_(1, yb.unsqueeze(1), 1)
+                pred_loss = model.compute_prediction_loss(score_c, y_onehot)
             
             loss = reconstr_loss + kl_weight * kl_loss + pred_weight * pred_loss
 

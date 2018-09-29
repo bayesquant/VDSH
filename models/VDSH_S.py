@@ -4,6 +4,11 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 
+def init_weights(m):
+    if type(m) == nn.Linear:
+        torch.nn.init.xavier_uniform_(m.weight)
+        m.bias.data.fill_(0.01)
+                
 class VDSH_S(nn.Module):
     
     def __init__(self, dataset, vocabSize, latentDim, num_classes, device, dropoutProb=0., use_softmax=True):
@@ -16,6 +21,7 @@ class VDSH_S(nn.Module):
         self.num_classes = num_classes
         self.dropoutProb = dropoutProb
         self.device = device
+        self.use_softmax = use_softmax
         
         self.encoder = nn.Sequential(nn.Linear(self.vocabSize, self.hidden_dim),
                                      nn.ReLU(inplace=True),
@@ -31,11 +37,20 @@ class VDSH_S(nn.Module):
                                      nn.LogSoftmax(dim=1))
         
         if use_softmax:
-            self.pred = nn.Sequential(nn.Linear(self.latentDim, self.vocabSize))
+            self.pred = nn.Sequential(nn.Linear(self.latentDim, self.num_classes))
             self.pred_loss = nn.CrossEntropyLoss() # combine log_softmax and NLLloss
         else:
-            self.pred = nn.Sequential(nn.Linear(self.latentDim, self.vocabSize),
+            self.pred = nn.Sequential(nn.Linear(self.latentDim, self.num_classes),
                                       nn.Sigmoid())
+        
+        # init the weights
+        self.encoder.apply(init_weights)
+        init_weights(self.h_to_mu)
+        init_weights(self.h_to_logvar)
+        
+        self.decoder.apply(init_weights)
+        self.pred.apply(init_weights)
+        
         
     def encode(self, doc_mat):
         h = self.encoder(doc_mat)
@@ -71,7 +86,11 @@ class VDSH_S(nn.Module):
         return -torch.mean(torch.sum(logprob_word * doc_mat, dim=1))
     
     def compute_prediction_loss(self, scores, labels):
-        return self.pred_loss(scores, labels)
+        if self.use_softmax:
+            return self.pred_loss(scores, labels)
+        else:
+            # compute L2 distance
+            return torch.mean(torch.sum((scores - labels)**2., dim=1))
         
     def get_binary_code(self, train, test):
         train_zy = [(self.encode(xb.to(self.device))[0], yb) for xb, yb in train]
