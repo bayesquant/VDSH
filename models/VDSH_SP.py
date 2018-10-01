@@ -41,10 +41,10 @@ class VDSH_SP(nn.Module):
                                      nn.LogSoftmax(dim=1))
         
         if use_softmax:
-            self.pred = nn.Sequential(nn.Linear(self.latentDim, self.vocabSize))
+            self.pred = nn.Sequential(nn.Linear(self.latentDim, self.num_classes))
             self.pred_loss = nn.CrossEntropyLoss() # combine log_softmax and NLLloss
         else:
-            self.pred = nn.Sequential(nn.Linear(self.latentDim, self.vocabSize),
+            self.pred = nn.Sequential(nn.Linear(self.latentDim, self.num_classes),
                                       nn.Sigmoid())
         
     def encode(self, doc_mat):
@@ -87,7 +87,11 @@ class VDSH_SP(nn.Module):
         return -torch.mean(torch.sum(logprob_word * doc_mat, dim=1))
     
     def compute_prediction_loss(self, scores, labels):
-        return self.pred_loss(scores, labels)
+        if self.use_softmax:
+            return self.pred_loss(scores, labels)
+        else:
+            # compute L2 distance
+            return torch.mean(torch.sum((scores - labels)**2., dim=1))
         
     def get_binary_code(self, train, test):
         train_zy = [(self.encode(xb.to(self.device))[0], yb) for xb, yb in train]

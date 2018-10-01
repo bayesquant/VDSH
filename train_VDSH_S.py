@@ -79,6 +79,9 @@ kl_step = 1 / 5000.
 pred_weight = 0.
 pred_weight_step = 1 / 1000.
 
+best_precision = 0
+best_precision_epoch = 0
+
 with open('logs/VDSH_S/loss.log.txt', 'w') as log_handle:
     log_handle.write('epoch,step,loss,reconstr_loss,kl_loss\n')
     
@@ -111,9 +114,17 @@ with open('logs/VDSH_S/loss.log.txt', 'w') as log_handle:
             
             log_handle.write('{},{},{:.4f},{:.4f},{:.4f}'.format(epoch, step, loss.item(), 
                                                                  reconstr_loss.item(), kl_loss.item()))
-        print('{} epoch:{} loss:{:.4f}'.format(model.get_name(), epoch+1, np.mean(avg_loss)))
+        print('{} epoch:{} loss:{:.4f} Best Precision:({}){:.3f}'.format(model.get_name(), epoch+1, np.mean(avg_loss), best_precision_epoch, best_precision))
         
         with torch.no_grad():
             train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
             prec = retrieve_topk(test_b.to(device), train_b.to(device), test_y.to(device), train_y.to(device), topK=100)
             print("precision at 100: {:.4f}".format(prec.item()))
+
+            if prec.item() > best_precision:
+                best_precision = prec.item()
+                best_precision_epoch = epoch + 1
+        
+#########################################################################################################
+with open('logs/VDSH_S/result.txt', 'a') as handle:
+    handle.write('{},{},{},{},{}\n'.format(dataset, data_fmt, args.nbits, best_precision_epoch, best_precision))

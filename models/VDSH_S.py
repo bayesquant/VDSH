@@ -51,7 +51,6 @@ class VDSH_S(nn.Module):
         self.decoder.apply(init_weights)
         self.pred.apply(init_weights)
         
-        
     def encode(self, doc_mat):
         h = self.encoder(doc_mat)
         z_mu = self.h_to_mu(h)
