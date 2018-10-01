@@ -16,6 +16,7 @@ class VDSH_SP(nn.Module):
         self.num_classes = num_classes
         self.dropoutProb = dropoutProb
         self.device = device
+        self.use_softmax = use_softmax
         
         self.enc_z = nn.Sequential(nn.Linear(self.vocabSize, self.hidden_dim),
                                      nn.ReLU(inplace=True),
