@@ -167,7 +167,7 @@ test_df.to_pickle(os.path.join(save_dir, 'test.tf.df.pkl'))
 cv_df.to_pickle(os.path.join(save_dir, 'cv.tf.df.pkl'))
 
 # save vocab
-with open('../dataset/ng20/vocab.pkl', 'wb') as handle:
+with open('../dataset/{}/vocab.pkl'.format(args.dataset), 'wb') as handle:
     pickle.dump(count_vect.vocabulary_, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
 print('Done.')
