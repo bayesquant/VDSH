@@ -80,8 +80,19 @@ elif args.dataset == 'agnews':
     
     del df
 
-elif args.dataset == 'yahooanswers':
-    pass
+elif args.dataset == 'yahooanswer':
+    root_dir = os.path.join(home, 'datasets/yahooanswer')
+    train_fn = os.path.join(root_dir, 'train.csv')
+    df = pd.read_csv(train_fn, header=None)
+    df.columns = ['label', 'title', 'body', 'answer']
+    train_docs = list(df.title)
+    train_tags = list(df.label - 1)
+
+    test_fn = os.path.join(root_dir, 'test.csv')
+    df = pd.read_csv(test_fn, header=None)
+    df.columns = ['label', 'title', 'body', 'answer']
+    test_docs = list(df.title)
+    test_tags = list(df.label - 1)
 
 ##################################################################################################
 
