@@ -8,11 +8,22 @@ from sklearn.utils import shuffle
 from sklearn.datasets import fetch_20newsgroups
 from sklearn.feature_extraction.text import CountVectorizer
 #from nltk.stem import PorterStemmer
+from pathlib import Path
+
+##################################################################################################
+
+home = str(Path.home())
 
 ##################################################################################################
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--dataset", help="Name of the dataset.")
+parser.add_argument("-v", "--vocab_size", type=int, default=10000, help="The number of vocabs.")
+parser.add_argument("--num_train", type=int, default=0, help="The number of training samples.")
+parser.add_argument("--num_test", type=int, default=0, help="The number of testing and cv samples.")
+
+parser.add_argument("--max_df", default=0.8, type=float)
+parser.add_argument("--min_df", default=3, type=int)
 parser.add_argument('--remove_short_docs', dest='remove_short_docs', action='store_true', help='Remove any document that has a length less than 5 words.')
 parser.add_argument('--remove_long_docs', dest='remove_long_docs', action='store_true', help='Remove any document that has a length more than 500 words.')
 parser.set_defaults(remove_short_docs=True)
@@ -34,10 +45,47 @@ if args.dataset == 'ng20':
     train_tags = train.target
     test_docs = test.data
     test_tags = test.target
+elif args.dataset == 'dbpedia':
+    root_dir = os.path.join(home, 'datasets/dbpedia')
+    train_fn = os.path.join(root_dir, 'train.csv')
+    df = pd.read_csv(train_fn, header=None)
+    df.columns = ['label', 'title', 'body']
+    train_docs = list(df.body)
+    train_tags = list(df.label - 1)
+
+    del df
     
+    test_fn = os.path.join(root_dir, 'test.csv')
+    df = pd.read_csv(test_fn, header=None)
+    df.columns = ['label', 'title', 'body']
+    test_docs = list(df.body)
+    test_tags = list(df.label - 1)
+    
+    del df
+elif args.dataset == 'agnews':
+    root_dir = os.path.join(home, 'datasets/agnews')
+    train_fn = os.path.join(root_dir, 'train.csv')
+    df = pd.read_csv(train_fn, header=None)
+    df.columns = ['label', 'title', 'body']
+    train_docs = list(df.body)
+    train_tags = list(df.label - 1)
+
+    del df
+    
+    test_fn = os.path.join(root_dir, 'test.csv')
+    df = pd.read_csv(test_fn, header=None)
+    df.columns = ['label', 'title', 'body']
+    test_docs = list(df.body)
+    test_tags = list(df.label - 1)
+    
+    del df
+
+elif args.dataset == 'yahooanswers':
+    pass
+
 ##################################################################################################
 
-count_vect = CountVectorizer(stop_words='english', max_features=10000, max_df=0.8, min_df=3)
+count_vect = CountVectorizer(stop_words='english', max_features=args.vocab_size, max_df=args.max_df, min_df=args.min_df)
 train_tf = count_vect.fit_transform(train_docs)
 test_tf = count_vect.transform(test_docs)
 
@@ -51,7 +99,25 @@ def create_dataframe(doc_tf, doc_targets):
     return df
 
 train_df = create_dataframe(train_tf, train_tags)
+if args.num_train < 0:
+    parser.error("The number of training samples must be positive.")
+if args.num_train > len(train_df):
+    parser.error("The number of training samples must not exceed the total number of samples.")
+
+if args.num_train > 0:
+    train_df = train_df.sample(n=args.num_train)
+    
 test_df = create_dataframe(test_tf, test_tags)
+if args.num_test < 0:
+    parser.error("The number of testing samples must be positive.")
+if args.num_test * 2 > len(test_df):
+    parser.error("The number of testing samples must not exceed the half of the total number of samples. We will use another half for CV set.")
+
+if args.num_test > 0:
+    test_df = test_df.sample(n=args.num_test * 2)
+
+print('Before filtering: num train: {} num test: {}'.format(len(train_df), len(test_df)))
+##################################################################################################
 
 def get_doc_length(doc_bow):
     return doc_bow.sum()
