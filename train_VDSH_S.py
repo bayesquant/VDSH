@@ -131,7 +131,8 @@ with open('logs/VDSH_S/loss.log.txt', 'w') as log_handle:
         
         with torch.no_grad():
             train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
-            prec = retrieve_topk(test_b.to(device), train_b.to(device), test_y.to(device), train_y.to(device), topK=100)
+            retrieved_indices = retrieve_topk(test_b.to(device), train_b.to(device), topK=100)
+            prec = compute_precision_at_k(retrieved_indices, test_y.to(device), train_y.to(device), topK=100, is_single_label=args.single_label)
             print("precision at 100: {:.4f}".format(prec.item()))
 
             if prec.item() > best_precision:

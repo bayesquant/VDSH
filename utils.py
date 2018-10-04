@@ -2,8 +2,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-def retrieve_topk(query_b, doc_b, query_labels, doc_labels, topK=100, batch_size=100):
-    
+def retrieve_topk(query_b, doc_b, topK, batch_size=100):
     n_bits = doc_b.size(1)
     n_train = doc_b.size(0)
     n_test = query_b.size(0)
@@ -34,15 +33,24 @@ def retrieve_topk(query_b, doc_b, query_labels, doc_labels, topK=100, batch_size
         topScores, newIndices = topScores.sort(dim=1)
         topIndices = torch.gather(topIndices, 1, newIndices)
 
-    Indices = topIndices[:,:topK]
-    test_labels = query_labels.unsqueeze(1).expand(n_test, topK)
+    return topIndices
 
-    topTrainLabels = [torch.index_select(doc_labels, 0, Indices[idx]).unsqueeze_(0) for idx in range(0, n_test)]
-    topTrainLabels = torch.cat(topTrainLabels, dim=0)
-
-    relevances = (test_labels == topTrainLabels).type(torch.cuda.ShortTensor)
+def compute_precision_at_k(retrieved_indices, query_labels, doc_labels, topK, is_single_label):
+    n_test = query_labels.size(0)
+    
+    Indices = retrieved_indices[:,:topK]
+    if is_single_label:
+        test_labels = query_labels.unsqueeze(1).expand(n_test, topK)
+        topTrainLabels = [torch.index_select(doc_labels, 0, Indices[idx]).unsqueeze_(0) for idx in range(0, n_test)]
+        topTrainLabels = torch.cat(topTrainLabels, dim=0)
+        relevances = (test_labels == topTrainLabels).type(torch.cuda.ShortTensor)
+    else:
+        topTrainLabels = [torch.index_select(doc_labels, 0, Indices[idx]).unsqueeze_(0) for idx in range(0, n_test)]
+        topTrainLabels = torch.cat(topTrainLabels, dim=0).type(torch.cuda.ShortTensor)
+        test_labels = query_labels.unsqueeze(1).expand(n_test, topK, topTrainLabels.size(-1)).type(torch.cuda.ShortTensor)
+        relevances = (topTrainLabels & test_labels).sum(dim=2)
+        
     true_positive = relevances.sum(dim=1).type(torch.cuda.FloatTensor)
     true_positive = true_positive.div_(100)
     prec_at_k = torch.mean(true_positive)
-
     return prec_at_k
