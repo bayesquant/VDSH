@@ -49,6 +49,7 @@ def compute_precision_at_k(retrieved_indices, query_labels, doc_labels, topK, is
         topTrainLabels = torch.cat(topTrainLabels, dim=0).type(torch.cuda.ShortTensor)
         test_labels = query_labels.unsqueeze(1).expand(n_test, topK, topTrainLabels.size(-1)).type(torch.cuda.ShortTensor)
         relevances = (topTrainLabels & test_labels).sum(dim=2)
+        relevances = (relevances > 0).type(torch.cuda.ShortTensor)
         
     true_positive = relevances.sum(dim=1).type(torch.cuda.FloatTensor)
     true_positive = true_positive.div_(100)
