@@ -2,7 +2,7 @@ import os
 from os.path import join
 import numpy as np
 import torch
-#from scipy.sparse import coo_matrix, vstack
+#from scipy.sparse import csr_matrix
 import pandas as pd
 import pickle
 from torch.utils.data import Dataset
