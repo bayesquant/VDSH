@@ -42,3 +42,18 @@ class SingleLabelTextDataset(Dataset):
         return len(set(self.df.label))
     
 ##########################################################################################################################
+
+class MultiLabelTextDataset(SingleLabelTextDataset):
+    """datasets wrapper for reuters, rcv1, tmc"""
+    def __init__(self, data_dir, download=False, subset='train', bow_format='tf'):
+        super(MultiLabelTextDataset, self).__init__(data_dir, download, subset, bow_format)
+        
+    def __getitem__(self, idx):
+        doc_bow = self.df.iloc[idx].bow
+        doc_bow = torch.from_numpy(doc_bow.toarray().squeeze().astype(np.float32))
+        label_bow = self.df.iloc[idx].label
+        label_bow = torch.from_numpy(label_bow.toarray().squeeze().astype(np.float32))
+        return (doc_bow, label_bow)
+    
+    def num_classes(self):
+        return self.df.iloc[0].label.shape[1]

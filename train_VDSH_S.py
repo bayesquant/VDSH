@@ -34,7 +34,11 @@ if not args.dataset:
     parser.error("Need to provide the dataset.")
 
 if not args.nbits:
-    parser.error("Need to provide the dataset.")
+    parser.error("Need to provide the number of bits.")
+        
+if args.dataset in ['reuters', 'tmc', 'rcv1']:
+    if args.single_label:
+        parser.error("Must provide the multi-label flags since the dataset is multi-labeled.")
         
 ##################################################################################################
 
@@ -44,9 +48,15 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #########################################################################################################
 
 dataset, data_fmt = args.dataset.split('.')
-train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
+
+if args.single_label:
+    train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
+    test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
+else:
+    train_set = MultiLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
+    test_set = MultiLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
+
 train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=args.train_batch_size, shuffle=True)
-test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
 test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=args.test_batch_size, shuffle=True)
 
 #########################################################################################################
@@ -98,10 +108,13 @@ with open('logs/VDSH_S/loss.log.txt', 'w') as log_handle:
             if args.single_label:
                 pred_loss = model.compute_prediction_loss(score_c, yb)
             else:
-                y_onehot = torch.zeros((xb.size(0), y_dim)).to(device)
-                y_onehot = y_onehot.scatter_(1, yb.unsqueeze(1), 1)
-                pred_loss = model.compute_prediction_loss(score_c, y_onehot)
-            
+                if len(yb.size()) == 1:
+                    y_onehot = torch.zeros((xb.size(0), y_dim)).to(device)
+                    y_onehot = y_onehot.scatter_(1, yb.unsqueeze(1), 1)
+                    pred_loss = model.compute_prediction_loss(score_c, y_onehot)
+                else:
+                    pred_loss = model.compute_prediction_loss(score_c, yb)
+
             loss = reconstr_loss + kl_weight * kl_loss + pred_weight * pred_loss
 
             optimizer.zero_grad()

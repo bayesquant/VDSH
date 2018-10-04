@@ -1,11 +1,12 @@
 import os
 import numpy as np
+from scipy.sparse import csr_matrix
 import pandas as pd
 import pickle
 from tqdm import tqdm
 import argparse
 from sklearn.utils import shuffle
-from sklearn.datasets import fetch_20newsgroups
+from nltk.corpus import reuters 
 from sklearn.feature_extraction.text import CountVectorizer
 #from nltk.stem import PorterStemmer
 from pathlib import Path
@@ -21,6 +22,7 @@ parser.add_argument("-d", "--dataset", help="Name of the dataset.")
 parser.add_argument("-v", "--vocab_size", type=int, default=10000, help="The number of vocabs.")
 parser.add_argument("--num_train", type=int, default=0, help="The number of training samples.")
 parser.add_argument("--num_test", type=int, default=0, help="The number of testing and cv samples.")
+#parser.add_argument("--num_labels", type=int, default=0, help="The number of labels.")
 
 parser.add_argument("--max_df", default=0.8, type=float)
 parser.add_argument("--min_df", default=3, type=int)
@@ -38,64 +40,37 @@ if not args.dataset:
 remove_short_document = args.remove_short_docs
 remove_long_document = args.remove_long_docs
 
-if args.dataset == 'ng20':
-    train = fetch_20newsgroups(subset='train', remove=('headers', 'footers', 'quotes')) 
-    test = fetch_20newsgroups(subset='test', remove=('headers', 'footers', 'quotes'))
-    train_docs = train.data
-    train_tags = train.target
-    test_docs = test.data
-    test_tags = test.target
-elif args.dataset == 'dbpedia':
-    root_dir = os.path.join(home, 'datasets/dbpedia')
-    train_fn = os.path.join(root_dir, 'train.csv')
-    df = pd.read_csv(train_fn, header=None)
-    df.columns = ['label', 'title', 'body']
-    train_docs = list(df.body)
-    train_tags = list(df.label - 1)
+if args.dataset == 'reuters':
+    train_docs = []
+    test_docs = []
+    for doc_id in reuters.fileids():
+        if doc_id.startswith("train"):
+            train_docs.append(reuters.raw(doc_id))
+        else:
+            test_docs.append(reuters.raw(doc_id))
 
-    del df
-    
-    test_fn = os.path.join(root_dir, 'test.csv')
-    df = pd.read_csv(test_fn, header=None)
-    df.columns = ['label', 'title', 'body']
-    test_docs = list(df.body)
-    test_tags = list(df.label - 1)
-    
-    del df
-elif args.dataset == 'agnews':
-    root_dir = os.path.join(home, 'datasets/agnews')
-    train_fn = os.path.join(root_dir, 'train.csv')
-    df = pd.read_csv(train_fn, header=None)
-    df.columns = ['label', 'title', 'body']
-    train_docs = list(df.body)
-    train_tags = list(df.label - 1)
+    train_tags = []
+    test_tags = []
+    for doc_id in reuters.fileids():
+        if doc_id.startswith("train"):
+            train_tags.append(reuters.categories(doc_id))
+        else:
+            test_tags.append(reuters.categories(doc_id))
+    train_tags = [' '.join(label) for label in train_tags]
+    test_tags = [' '.join(label) for label in test_tags]
 
-    del df
+    num_labels = 20
     
-    test_fn = os.path.join(root_dir, 'test.csv')
-    df = pd.read_csv(test_fn, header=None)
-    df.columns = ['label', 'title', 'body']
-    test_docs = list(df.body)
-    test_tags = list(df.label - 1)
-    
-    del df
+##################################################################################################
+# convert tags to a binary vector
+label_tf = CountVectorizer(binary=True, max_features=num_labels)
+train_tags = label_tf.fit_transform(train_tags)
+train_tags = csr_matrix(train_tags, dtype='int')
+print('num train:{} num tags:{}'.format(train_tags.shape[0], train_tags.shape[1]))
 
-elif args.dataset == 'yahooanswer':
-    root_dir = os.path.join(home, 'datasets/yahooanswer')
-    train_fn = os.path.join(root_dir, 'train.csv')
-    df = pd.read_csv(train_fn, header=None)
-    df.columns = ['label', 'title', 'body', 'answer']
-    train_docs = list(df.title)
-    train_tags = list(df.label - 1)
-
-    test_fn = os.path.join(root_dir, 'test.csv')
-    df = pd.read_csv(test_fn, header=None)
-    df.columns = ['label', 'title', 'body', 'answer']
-    test_docs = list(df.title)
-    test_tags = list(df.label - 1)
-    
-    del df
-
+test_tags = label_tf.transform(test_tags)
+test_tags = csr_matrix(test_tags, dtype='int')
+print('num test:{} num tags:{}'.format(test_tags.shape[0], test_tags.shape[1]))
 ##################################################################################################
 
 count_vect = CountVectorizer(stop_words='english', max_features=args.vocab_size, max_df=args.max_df, min_df=args.min_df)
@@ -156,6 +131,17 @@ if remove_long_document:
     test_df = test_df[test_df.bow.apply(get_doc_length) <= 500]
     print('num train: {} num test: {}'.format(len(train_df), len(test_df)))
     
+##################################################################################################
+
+# remove any test sample that has no tags
+def get_num_word(tag_bow):
+    return tag_bow.nonzero()[1].shape[0]
+
+before_num_test = len(test_df)
+test_df = test_df[test_df.label.apply(get_num_word) > 0]
+after_num_test = len(test_df)
+print('num test after removing a test with no tags: (before): {} (after): {}'.format(before_num_test, after_num_test))
+
 ##################################################################################################
 
 # split test and cv
