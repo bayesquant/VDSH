@@ -34,8 +34,8 @@ if not args.dataset:
     parser.error("Need to provide the dataset.")
 
 if not args.nbits:
-    parser.error("Need to provide the dataset.")
-        
+    parser.error("Need to provide the number of bits.")
+                
 ##################################################################################################
 
 os.environ["CUDA_VISIBLE_DEVICES"]=args.gpunum
@@ -44,9 +44,21 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #########################################################################################################
 
 dataset, data_fmt = args.dataset.split('.')
-train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
+
+if dataset in ['reuters', 'tmc', 'rcv1']:
+    if args.single_label:
+        #parser.error("Must provide the multi-label flags since the dataset is multi-labeled.")
+        print('set single_label flag to FALSE')
+        args.single_label = False # automatically set this flags
+        
+if args.single_label:
+    train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
+    test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
+else:
+    train_set = MultiLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
+    test_set = MultiLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
+
 train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=args.train_batch_size, shuffle=True)
-test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
 test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=args.test_batch_size, shuffle=True)
 
 #########################################################################################################
@@ -54,7 +66,7 @@ y_dim = train_set.num_classes()
 num_bits = args.nbits
 num_features = train_set[0][0].size(0)
 
-print("Train VDSH-SP model ...")
+print("Train VDSH-S model ...")
 print("dataset: {}".format(args.dataset))
 print("numbits: {}".format(args.nbits))
 print("gpu id:  {}".format(args.gpunum))
@@ -99,10 +111,13 @@ with open('logs/VDSH_SP/loss.log.txt', 'w') as log_handle:
             if args.single_label:
                 pred_loss = model.compute_prediction_loss(score_c, yb)
             else:
-                y_onehot = torch.zeros((xb.size(0), y_dim)).to(device)
-                y_onehot = y_onehot.scatter_(1, yb.unsqueeze(1), 1)
-                pred_loss = model.compute_prediction_loss(score_c, y_onehot)
-            
+                if len(yb.size()) == 1:
+                    y_onehot = torch.zeros((xb.size(0), y_dim)).to(device)
+                    y_onehot = y_onehot.scatter_(1, yb.unsqueeze(1), 1)
+                    pred_loss = model.compute_prediction_loss(score_c, y_onehot)
+                else:
+                    pred_loss = model.compute_prediction_loss(score_c, yb)
+                    
             loss = reconstr_loss + (kl_weight * z_kl_loss) + (kl_weight * v_kl_loss) + pred_weight * pred_loss
 
             optimizer.zero_grad()
@@ -120,7 +135,8 @@ with open('logs/VDSH_SP/loss.log.txt', 'w') as log_handle:
         
         with torch.no_grad():
             train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
-            prec = retrieve_topk(test_b.to(device), train_b.to(device), test_y.to(device), train_y.to(device), topK=100)
+            retrieved_indices = retrieve_topk(test_b.to(device), train_b.to(device), topK=100)
+            prec = compute_precision_at_k(retrieved_indices, test_y.to(device), train_y.to(device), topK=100, is_single_label=args.single_label)
             print("precision at 100: {:.4f}".format(prec.item()))
 
             if prec.item() > best_precision:

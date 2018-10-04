@@ -36,10 +36,6 @@ if not args.dataset:
 if not args.nbits:
     parser.error("Need to provide the number of bits.")
         
-if args.dataset in ['reuters', 'tmc', 'rcv1']:
-    if args.single_label:
-        parser.error("Must provide the multi-label flags since the dataset is multi-labeled.")
-        
 ##################################################################################################
 
 os.environ["CUDA_VISIBLE_DEVICES"]=args.gpunum
@@ -49,6 +45,12 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 dataset, data_fmt = args.dataset.split('.')
 
+if dataset in ['reuters', 'tmc', 'rcv1']:
+    if args.single_label:
+        #parser.error("Must provide the multi-label flags since the dataset is multi-labeled.")
+        print('set single_label flag to FALSE')
+        args.single_label = False # automatically set this flags
+        
 if args.single_label:
     train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
     test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
