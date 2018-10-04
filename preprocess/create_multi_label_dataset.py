@@ -61,16 +61,40 @@ if args.dataset == 'reuters':
 
     num_labels = 20
     
-##################################################################################################
-# convert tags to a binary vector
-label_tf = CountVectorizer(binary=True, max_features=num_labels)
-train_tags = label_tf.fit_transform(train_tags)
-train_tags = csr_matrix(train_tags, dtype='int')
-print('num train:{} num tags:{}'.format(train_tags.shape[0], train_tags.shape[1]))
+    # convert tags to a binary vector
+    label_tf = CountVectorizer(binary=True, max_features=num_labels)
+    train_tags = label_tf.fit_transform(train_tags)
+    train_tags = csr_matrix(train_tags, dtype='int')
+    
+    test_tags = label_tf.transform(test_tags)
+    test_tags = csr_matrix(test_tags, dtype='int')
+    print('num train:{} num test:{} num tags:{}'.format(train_tags.shape[0], test_tags.shape[0], train_tags.shape[1]))
 
-test_tags = label_tf.transform(test_tags)
-test_tags = csr_matrix(test_tags, dtype='int')
-print('num test:{} num tags:{}'.format(test_tags.shape[0], test_tags.shape[1]))
+elif args.dataset == 'tmc':
+    data_dir = os.path.join(home, 'datasets/tmc')
+
+    train_docs = []
+    with open(os.path.join(data_dir, 'TMC_TrainingData.txt')) as text_data:
+        for i, line in enumerate(text_data):
+            train_docs.append(line.strip()[2:])
+        
+    test_docs = []
+    with open(os.path.join(data_dir, 'TMC_TestData.txt')) as text_data:
+        for i, line in enumerate(text_data):
+            test_docs.append(line.strip()[2:])
+            
+    with open(os.path.join(data_dir, 'TMC_TrainCategoryMatrix.csv')) as handle:
+        y_train = [[(int(v)+1)//2 for v in line.strip().split(',')] for line in handle]
+        y_train = np.array(y_train)
+        train_tags = csr_matrix(y_train)
+
+    with open(os.path.join(data_dir, 'TMC_TestTruth.csv')) as handle:
+        y_test = [[(int(v)+1)//2 for v in line.strip().split(',')] for line in handle]
+        y_test = np.array(y_test)
+        test_tags = csr_matrix(y_test)
+    
+    print('num train:{} num test:{} num tags:{}'.format(train_tags.shape[0], test_tags.shape[0], train_tags.shape[1]))
+
 ##################################################################################################
 
 count_vect = CountVectorizer(stop_words='english', max_features=args.vocab_size, max_df=args.max_df, min_df=args.min_df)
