@@ -42,12 +42,11 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 dataset, data_fmt = args.dataset.split('.')
 
 if dataset in ['reuters', 'tmc', 'rcv1']:
-    if args.single_label:
-        #parser.error("Must provide the multi-label flags since the dataset is multi-labeled.")
-        print('set single_label flag to FALSE')
-        args.single_label = False # automatically set this flags
+    single_label_flag = False
+else:
+    single_label_flag = True
         
-if args.single_label:
+if single_label_flag:
     train_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='train', bow_format=data_fmt, download=True)
     test_set = SingleLabelTextDataset('dataset/{}'.format(dataset), subset='test', bow_format=data_fmt, download=True)
 else:
@@ -67,7 +66,7 @@ print("dataset: {}".format(args.dataset))
 print("numbits: {}".format(args.nbits))
 print("gpu id:  {}".format(args.gpunum))
 print("dropout probability: {}".format(args.dropout))
-if args.single_label:
+if single_label_flag:
     print("single-label prediction.")
 else:
     print("multi-label prediction.")
@@ -118,7 +117,7 @@ with open('logs/VDSH/loss.log.txt', 'w') as log_handle:
         with torch.no_grad():
             train_b, test_b, train_y, test_y = model.get_binary_code(train_loader, test_loader)
             retrieved_indices = retrieve_topk(test_b.to(device), train_b.to(device), topK=100)
-            prec = compute_precision_at_k(retrieved_indices, test_y.to(device), train_y.to(device), topK=100, is_single_label=args.single_label)
+            prec = compute_precision_at_k(retrieved_indices, test_y.to(device), train_y.to(device), topK=100, is_single_label=single_label_flag)
             print("precision at 100: {:.4f}".format(prec.item()))
 
             if prec.item() > best_precision:
