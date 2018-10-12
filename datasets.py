@@ -42,6 +42,9 @@ class SingleLabelTextDataset(Dataset):
     def num_classes(self):
         return len(set(self.df.label))
     
+    def num_features(self):
+        return self.df.bow.iloc[0].shape[1]
+    
 ##########################################################################################################################
 
 class MultiLabelTextDataset(SingleLabelTextDataset):
