@@ -144,6 +144,8 @@ for q_idx in tqdm(range(0, n_queries, queryBatchSize), desc='Query', ncols=0):
         nn_doc_index = topK_indices[i - query_batch_s_idx]
         nn_doc_ids = list(documents.iloc[nn_doc_index].index)
         nn_data = {'doc_id': queries.iloc[i].name, 
+                   'bow': queries.iloc[i].bow,
+                   'label': queries.iloc[i].label,
                    'top_nn': nn_doc_ids, 
                    'scores': list(top_scores[i - query_batch_s_idx].cpu().numpy())}
         nearest_neighbors.append(nn_data)
@@ -161,4 +163,5 @@ if usetrain:
 else:
     save_fn = os.path.join(save_dir, 'test.NN.pkl')
     
+df.set_index('doc_id', inplace=True)
 df.to_pickle(save_fn)
