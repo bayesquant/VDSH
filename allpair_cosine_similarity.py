@@ -13,8 +13,8 @@ parser.add_argument("--dataset")
 parser.add_argument("--usetrain", dest='usetrain', action='store_true')
 parser.add_argument("--usetest", dest='usetrain', action='store_false')
 parser.set_defaults(usetrain=False)
-parser.add_argument("--train_batch_size", default=100, type=int)
-parser.add_argument("--test_batch_size", default=500, type=int)
+parser.add_argument("--docBatchSize", default=100, type=int)
+parser.add_argument("--queryBatchSize", default=500, type=int)
 parser.add_argument("--num_neighbors", default=100, type=int)
 
 args = parser.parse_args()
@@ -34,11 +34,11 @@ else:
     parser.error("Need to provide the dataset.")
     
 dataset = args.dataset
-train_batch_size = args.train_batch_size
-test_batch_size = args.test_batch_size
+docBatchSize = args.docBatchSize
+queryBatchSize = args.queryBatchSize
 gpunum = args.gpunum
 
-TopK = args.num_neighbors
+TopK = args.num_neighbors + 1 # need to plus one because for 'use_train' mode, the nearest node is itself.
 usetrain = args.usetrain
 
 ##################################################################################################
@@ -75,13 +75,8 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 queries = query_set.df
 documents = train_set.df
-TopK = 100
-queryBatchSize = 500
-docBatchSize = 100
-
 n_docs = len(documents)
 n_queries = len(queries)
-query_row = 0
 
 ##################################################################################################
 nearest_neighbors = []
@@ -138,6 +133,13 @@ for q_idx in tqdm(range(0, n_queries, queryBatchSize), desc='Query', ncols=0):
     del scoreList
     del indicesList
     
+    if usetrain:
+        topK_indices = topK_indices[:, 1:] # ignore the first entry because it is itself
+        top_scores = top_scores[:, 1:]
+    else:
+        topK_indices = topK_indices[:, :-1] # ignore the last one
+        top_scores = top_scores[:, :-1]
+        
     for i in range(query_batch_s_idx, query_batch_e_idx):
         nn_doc_index = topK_indices[i - query_batch_s_idx]
         nn_doc_ids = list(documents.iloc[nn_doc_index].index)
